@@ -1,0 +1,27 @@
+pipeline {
+  agent {
+    docker {
+      image 'maven:3.9.9-eclipse-temurin-17'
+      args '-v $HOME/.m2:/root/.m2'  // cache do .m2 para builds mais rápidos
+    }
+  }
+  options { timestamps() }
+  triggers { githubPush() }
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+    stage('Build & Test') {
+      steps {
+        sh 'mvn -B -U -Dmaven.test.failure.ignore=false clean verify'
+      }
+      post { always { junit 'target/surefire-reports/*.xml' } }
+    }
+    stage('Package') {
+      steps {
+        sh 'mvn -B package -DskipTests'
+        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+      }
+    }
+  }
+}
